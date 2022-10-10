@@ -1,72 +1,132 @@
+const path = require("path");
+const http = require("http");
+const express = require("express");
+const socketio = require("socket.io");
+const formatMessage = require("./helpers/formatDate");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const chatEnum = require("./app/service/enum/chatting.util");
 
-const path = require('path');
-const http = require('http');
-const express = require('express');
-const socketio = require('socket.io');
-const formatMessage = require('./helpers/formatDate')
+var corsOptions = {
+  origin: "http://localhost:3000",
+};
+
 const {
   getActiveUser,
   exitRoom,
   newUser,
-  getIndividualRoomUsers
-} = require('./helpers/userHelper');
+  newMessage,
+  getM,
+  getIndividualRoomUsers,
+} = require("./helpers/userHelper");
 
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
 // Set public directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use(cors(corsOptions));
+
+// parse requests of content-type - application/json
+app.use(bodyParser.json());
+
+// parse requests of content-type - application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: true }));
+
+const db = require("./app/models");
+const User = db.user;
+const chattingService = require("./app/service/chat-room.service");
+
+// db.sequelize.sync({ force: true }).then(
+//   () => console.log("Sync complete")
+// ).then(()=>{
+//   //we assume company id is 3
+//   User.create({userName: "SuperAdmin",passwordHash:"123456789", firstName:"Super", parent_email_id:"0", email: "cb@gmail.com"})
+//   User.create({userName: "agent1",passwordHash:"123456789", firstName:"Super", parent_email_id:"1", email: "agent@gmail.com"})
+// });
 
 // this block will run when the client connects
-io.on('connection', socket => {
-  socket.on('joinRoom', ({ username, room }) => {
-    const user = newUser(socket.id, username, room);
+io.on("connection", (socket) => {
+  socket.on(
+    chatEnum.chatConstants.CHATTING_CHANNELS.OPEN_CONVERSATION_CHANNEL,
+    (userId) => {
+      chattingService.startConversation(userId, socket);
+    }
+  );
 
-    socket.join(user.room);
+  socket.on(
+    chatEnum.chatConstants.CHATTING_CHANNELS.STATUS_INFORMATION_CHANNEL,
+    (userId) => {
+      chattingService.getChattingStatus(userId, socket);
+    }
+  );
 
-    // General welcome
-    socket.emit('message', formatMessage("WebCage", 'Messages are limited to this room! '));
+  socket.on(
+    chatEnum.chatConstants.CHATTING_CHANNELS.JOIN_CONVERSATION_CHANNEL,
+    ({ email, userType }) => {
+      chattingService.joinChat(socket, io, email, userType);
+    }
+  );
 
-    // Broadcast everytime users connects
-    socket.broadcast
-      .to(user.room)
-      .emit(
-        'message',
-        formatMessage("WebCage", `${user.username} has joined the room`)
-      );
+  // socket.on("joinRoom", ({ username, room }) => {
+  //   const user = newUser(socket.id, username, room);
+  //   socket.join(user.room);
 
-    // Current active users and room name
-    io.to(user.room).emit('roomUsers', {
-      room: user.room,
-      users: getIndividualRoomUsers(user.room)
-    });
-  });
+  //   console.log("username", user.room);
+  //   // General welcome
+  //   socket.emit(
+  //     "message",
+  //     formatMessage("WebCage", "Messages are limited to this room! ")
+  //   );
+
+  //   // Broadcast everytime users connects
+  //   socket.broadcast
+  //     .to(user.room)
+  //     .emit(
+  //       "message",
+  //       formatMessage("I hear you", `${user.userType} has joined the Chat`)
+  //     );
+
+  //   // Current active users and room name
+  //   io.to(user.room).emit("roomUsers", {
+  //     room: user.room,
+  //     users: getIndividualRoomUsers(user.room),
+  //   });
+  // });
 
   // Listen for client message
-  socket.on('chatMessage', msg => {
-    const user = getActiveUser(socket.id);
-
-    io.to(user.room).emit('message', formatMessage(user.username, msg));
+  socket.on("chatMessage", (msg) => {
+    chattingService.chatMessage(socket,io,msg);
+  
   });
 
   // Runs when client disconnects
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     const user = exitRoom(socket.id);
 
     if (user) {
       io.to(user.room).emit(
-        'message',
+        "message",
         formatMessage("WebCage", `${user.username} has left the room`)
       );
 
       // Current active users and room name
-      io.to(user.room).emit('roomUsers', {
+      io.to(user.room).emit("roomUsers", {
         room: user.room,
-        users: getIndividualRoomUsers(user.room)
+        users: getIndividualRoomUsers(user.room),
       });
     }
   });
+});
+
+require("./app/routes/chat.routes")(app);
+require("./app/routes/tutorial.routes")(app);
+
+// simple route
+app.get("/omelnour/welcome", (req, res) => {
+  res.json({ message: "Welcome to Omelnour Application." });
 });
 
 const PORT = process.env.PORT || 3000;

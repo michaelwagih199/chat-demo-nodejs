@@ -1,8 +1,9 @@
 const users = [];
 
+
 // Join user to chat
-function newUser(id, username, room) {
-  const user = { id, username, room };
+function newUser(id, username, userType, room) {
+  const user = { id, username, userType, room };
 
   users.push(user);
 
@@ -11,12 +12,12 @@ function newUser(id, username, room) {
 
 // Get current user
 function getActiveUser(id) {
-  return users.find(user => user.id === id);
+  return users.find((user) => user.id === id);
 }
 
 // User leaves chat
 function exitRoom(id) {
-  const index = users.findIndex(user => user.id === id);
+  const index = users.findIndex((user) => user.id === id);
 
   if (index !== -1) {
     return users.splice(index, 1)[0];
@@ -25,12 +26,13 @@ function exitRoom(id) {
 
 // Get room users
 function getIndividualRoomUsers(room) {
-  return users.filter(user => user.room === room);
+  return users.filter((user) => user.room === room);
 }
 
 module.exports = {
   newUser,
   getActiveUser,
   exitRoom,
-  getIndividualRoomUsers
+  getIndividualRoomUsers,
+ 
 };
