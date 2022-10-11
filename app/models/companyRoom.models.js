@@ -16,11 +16,6 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
 
-    companyRoomStatus: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-
     masterUserStatus: {
       type: Sequelize.STRING,
       allowNull: false,

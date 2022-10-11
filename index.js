@@ -49,12 +49,7 @@ const chattingService = require("./app/service/chat-room.service");
 
 // this block will run when the client connects
 io.on("connection", (socket) => {
-  socket.on(
-    chatEnum.chatConstants.CHATTING_CHANNELS.OPEN_CONVERSATION_CHANNEL,
-    (userId) => {
-      chattingService.startConversation(userId, socket);
-    }
-  );
+
 
   socket.on(
     chatEnum.chatConstants.CHATTING_CHANNELS.STATUS_INFORMATION_CHANNEL,
@@ -70,64 +65,24 @@ io.on("connection", (socket) => {
     }
   );
 
-  // socket.on("joinRoom", ({ username, room }) => {
-  //   const user = newUser(socket.id, username, room);
-  //   socket.join(user.room);
-
-  //   console.log("username", user.room);
-  //   // General welcome
-  //   socket.emit(
-  //     "message",
-  //     formatMessage("WebCage", "Messages are limited to this room! ")
-  //   );
-
-  //   // Broadcast everytime users connects
-  //   socket.broadcast
-  //     .to(user.room)
-  //     .emit(
-  //       "message",
-  //       formatMessage("I hear you", `${user.userType} has joined the Chat`)
-  //     );
-
-  //   // Current active users and room name
-  //   io.to(user.room).emit("roomUsers", {
-  //     room: user.room,
-  //     users: getIndividualRoomUsers(user.room),
-  //   });
-  // });
-
   // Listen for client message
   socket.on("chatMessage", (msg) => {
     chattingService.chatMessage(socket,io,msg);
-  
+  });
+
+  socket.on("startConversation", (email) => {
+    chattingService.startConversation(socket, email);
   });
 
   // Runs when client disconnects
   socket.on("disconnect", () => {
-    const user = exitRoom(socket.id);
-
-    if (user) {
-      io.to(user.room).emit(
-        "message",
-        formatMessage("WebCage", `${user.username} has left the room`)
-      );
-
-      // Current active users and room name
-      io.to(user.room).emit("roomUsers", {
-        room: user.room,
-        users: getIndividualRoomUsers(user.room),
-      });
-    }
+    chattingService.disconnect(socket,io);
   });
 });
 
 require("./app/routes/chat.routes")(app);
 require("./app/routes/tutorial.routes")(app);
 
-// simple route
-app.get("/omelnour/welcome", (req, res) => {
-  res.json({ message: "Welcome to Omelnour Application." });
-});
 
 const PORT = process.env.PORT || 3000;
 

@@ -2,7 +2,7 @@ const moment = require("moment");
 
 //enum for type and status
 const RoomChatStatus = {
-  OPEN: "DISCONNECT",
+  DISCONNECT: "DISCONNECT",
   STANDBY: "STANDBY",
   CHATTING: "CURRENTLY_CHATTING",
 };

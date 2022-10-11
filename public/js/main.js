@@ -18,6 +18,8 @@ let configDevice = {
 // socket.emit('joinRoom', { username, room });
 
 socket.emit('JOIN_CONVERSATION_CHANNEL', {email,userType});
+
+
 // socket.emit('OPEN_CONVERSATION_CHANNEL', "agent@gmail.com");
 
 // Get room and users
@@ -26,8 +28,14 @@ socket.on('activeRoomUserUser', ({ room, users }) => {
   outputUsers(users);
 });
 
+socket.on('CONVERSATION_STATUS',  (message) => {
+  console.log(message);
+});
+
 // Message from server
 socket.on("joinUserMessage", (message) => {
+  // socket.emit('startConversation', email);
+  
   console.log(message);
   // outputMessage(message);
 
@@ -56,6 +64,7 @@ chatForm.addEventListener("submit", (e) => {
   if (!msg) {
     return false;
   }
+
 
   // Emit message to server
   socket.emit("chatMessage", msg);

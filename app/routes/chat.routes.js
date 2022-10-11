@@ -3,7 +3,9 @@ module.exports = (app) => {
 
   var router = require("express").Router();
 
-  // Retrieve company
+  // setup Chatting
+  router.post("/activeStatus/user/:id", chatService.activeStatus);
+  router.post("/checkStatus/user/:id", chatService.checkStatus);
 
-  app.use("/api/chatting", router);
+  app.use("/api/chat", router);
 };
