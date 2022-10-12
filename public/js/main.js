@@ -34,7 +34,6 @@ socket.on('CONVERSATION_STATUS',  (message) => {
 
 // Message from server
 socket.on("joinUserMessage", (message) => {
-  // socket.emit('startConversation', email);
   
   console.log(message);
   // outputMessage(message);
@@ -47,6 +46,7 @@ socket.on("joinUserMessage", (message) => {
 socket.on("message", (message) => {
   console.log(message);
   outputMessage(message);
+  socket.emit('startConversation', email);
 
   // Scroll down
   chatMessages.scrollTop = chatMessages.scrollHeight;

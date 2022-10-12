@@ -3,7 +3,7 @@ const User = db.user;
 const ChatRoom = db.chatRoom;
 const ChatMessage = db.chatMessage;
 const CompanyRoom = db.companyRoom;
-const { QueryTypes } = require('sequelize');
+const { QueryTypes } = require("sequelize");
 
 const chatEnum = require("./enum/chatting.util");
 const formatMessage = require("../../helpers/formatDate");
@@ -12,6 +12,7 @@ const {
   getActiveUser,
   exitRoom,
   newUser,
+  findByUserType,
   getIndividualRoomUsers,
 } = require("../../helpers/userHelper");
 const { companyRoom } = require("../models");
@@ -23,7 +24,6 @@ var chatInfo = {
   chatRoomId: "",
   companyRoomId: "",
 };
-
 
 exports.activeStatus = async (req, res) => {
   const id = req.params.id;
@@ -66,15 +66,12 @@ exports.activeStatus = async (req, res) => {
     });
 
     res.status(200).send({
-      message: "Chat Setup Succssfully",
+      message: "Chat Setup Successfully",
     });
-
-  } catch (error) {
-
-  }
+  } catch (error) {}
 };
 
-exports.checkStatus = async (req,res) =>{
+exports.checkStatus = async (req, res) => {
   try {
     const id = req.params.id;
 
@@ -88,15 +85,12 @@ exports.checkStatus = async (req,res) =>{
     }
     await sendChattingInfoResponse(currentUser.email);
     res.status(200).send({
-      status:chatInfo,
+      status: chatInfo,
     });
-
   } catch (error) {
     console.log(error);
   }
-
-}
-
+};
 
 sendChattingInfoResponse = async (userEmail) => {
   try {
@@ -125,15 +119,17 @@ sendChattingInfoResponse = async (userEmail) => {
       chatRoomId: chatRoomStatus.id,
       companyRoomId: companyRoomStatus.id,
     };
-
   } catch (error) {
-    console.log("🚀 ~ file: chat-room.service ~ line 120 ~ info", error);
-    throw error
+    console.log(
+      "🚀 ~ file: chat-room.service.js ~ line 130 ~ sendChattingInfoResponse= ~ error",
+      error
+    );
+    throw error;
   }
 };
 
 exports.getChattingStatus = async (userEmail, socket) => {
-  await sendChattingInfoResponse( userEmail);
+  await sendChattingInfoResponse(userEmail);
   socket.emit(
     chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
     chatEnum.chattingInfoResponse(
@@ -145,26 +141,22 @@ exports.getChattingStatus = async (userEmail, socket) => {
   );
 };
 
-exports.startConversation = async(socket,  userEmail) => {
-  
-  await sendChattingInfoResponse( userEmail);
-  
+exports.startConversation = async (socket, userEmail) => {
+  await sendChattingInfoResponse(userEmail);
+
   await updateChatRoom(
     chatInfo.chatRoomId,
     chatEnum.RoomChatStatus.CHATTING
-  ).then(()=>{
+  ).then(() => {
     socket.emit(
       chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-      'Conversation Started Successfully'
+      "Conversation Started Successfully"
     );
   });
-  
-}
+};
 
-exports.disconnect = async(socket, io) => {
-  
+exports.disconnect = async (socket, io) => {
   try {
-    
     const user = exitRoom(socket.id);
 
     if (user) {
@@ -172,39 +164,34 @@ exports.disconnect = async(socket, io) => {
         chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
         formatMessage("I Hear you", `${user.username} has left the room`)
       );
-  
+
       // Current active users and room name
       io.to(user.room).emit("roomUsers", {
         room: user.room,
         users: getIndividualRoomUsers(user.room),
       });
     }
-  
+
     await sendChattingInfoResponse(user.username);
-    
+
     await updateChatRoom(
       chatInfo.chatRoomId,
       chatEnum.RoomChatStatus.DISCONNECT
-    ).then(()=>{
+    ).then(() => {
       socket.emit(
         chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-        'Conversation Status disconnected.'
+        "Conversation Status disconnected."
       );
     });
   } catch (error) {
     console.log("disconnect error", error);
   }
-
-  
-}
+};
 
 exports.joinChat = async (socket, io, userEmail, userType) => {
   try {
-    await sendChattingInfoResponse( userEmail);
-    await updateChatRoom(
-      chatInfo.chatRoomId,
-      chatEnum.RoomChatStatus.STANDBY
-    );
+    await sendChattingInfoResponse(userEmail);
+    await updateChatRoom(chatInfo.chatRoomId, chatEnum.RoomChatStatus.STANDBY);
     switch (userType) {
       case chatEnum.UserType.MASTER:
         await standByMaster(chatInfo.companyRoomId);
@@ -213,12 +200,7 @@ exports.joinChat = async (socket, io, userEmail, userType) => {
         await standBySlave(chatInfo.companyRoomId);
         break;
     }
-    const user = newUser(
-      socket.id,
-      userEmail,
-      userType,
-      chatInfo.chatRoomId
-    );
+    const user = newUser(socket.id, userEmail, userType, chatInfo.chatRoomId);
 
     socket.join(user.room);
 
@@ -235,56 +217,61 @@ exports.joinChat = async (socket, io, userEmail, userType) => {
       users: getIndividualRoomUsers(user.room),
     });
 
-    // const { count, rows } = await ChatMessage.findAndCountAll({
-    //   where: {
-    //     ChatRoomId: user.room,
-    //     ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE
-    //   }
-    // });
+    const { count, rows } = await ChatMessage.findAndCountAll({
+      where: {
+        ChatRoomId: user.room,
+        ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE,
+      },
+    });
 
-    
     // const historyMessage = await db.query("select msg.id, msg.message,msg.userType,msg.createdAt from chatmessages as msg join chatrooms as room on msg.ChatRoomId = room.id where room.id = :roomId", {
     //   model: ChatMessage,
     //   mapToModel: true,
     //   replacements: { roomId: '3' },
     //   type: QueryTypes.SELECT
     //  });
-  
+
     //  console.log("historyMessage=>>>>>",historyMessage);
 
-    // rows.forEach(element => {
-    //   io.to(user.room).emit("message", formatMessage(user.username, element.message));
-    // });
-
+    rows.forEach((element) => {
+      io.to(user.room).emit(
+        "message",
+        formatMessage(user.username, element.message)
+      );
+    });
   } catch (error) {
     console.log(error);
-   }
+  }
 };
 
 exports.chatMessage = async (socket, io, chatMessage) => {
   try {
-    
+
     const user = getActiveUser(socket.id);
+    const otherUser = findByUserType(user.userType);
+    console.log("🚀 ~ file: chat-room.service.js ~ line 251 ~ exports.chatMessage= ~ otherUser", otherUser)
+
     await sendChattingInfoResponse(user.username);
-    
+
     if (chatInfo.roomStatus != chatEnum.RoomChatStatus.CHATTING) {
-      io.to(user.room).emit(chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS, formatMessage("I Hear You", 'Plase Start Conversation'));
+      io.to(user.room).emit(
+        chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+        formatMessage("I Hear You", "Plase Start Conversation")
+      );
       return;
     }
-  
-    io.to(user.room).emit("message", formatMessage(user.userType, chatMessage));
+
+    io.to(otherUser.id).emit("message", formatMessage(user.userType, chatMessage));
     let chatMessageObject = {
       message: chatMessage,
       ChatRoomId: user.room,
       userType: user.userType,
-      ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE
+      ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE,
     };
     await ChatMessage.create(chatMessageObject);
-
   } catch (error) {
-      console.log("====>> chatMessage EROR ===>>",error);
+    console.log("====>> chatMessage EROR ===>>", error);
   }
-
 };
 
 const standByMaster = async (companyRoomId) => {
@@ -318,5 +305,4 @@ const updateChatRoom = async (chatRoomId, status) => {
       },
     }
   );
-
 };
