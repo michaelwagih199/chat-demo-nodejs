@@ -15,7 +15,7 @@ const {
   findByUserType,
   getIndividualRoomUsers,
 } = require("../../helpers/userHelper");
-const { companyRoom } = require("../models");
+const { companyRoom, user } = require("../models");
 
 var chatInfo = {
   roomStatus: "",
@@ -141,22 +141,42 @@ exports.getChattingStatus = async (userEmail, socket) => {
   );
 };
 
-exports.startConversation = async (socket, userEmail) => {
-  await sendChattingInfoResponse(userEmail);
-
-  await updateChatRoom(
-    chatInfo.chatRoomId,
-    chatEnum.RoomChatStatus.CHATTING
-  ).then(() => {
+exports.startConversation = async (socket, username) => {
+  await sendChattingInfoResponse(username);
+  if (chatInfo.roomStatus === chatEnum.RoomChatStatus.CHATTING)
     socket.emit(
       chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-      "Conversation Started Successfully"
+      formatMessage("I Hear you", `Conversation is Already Started`)
     );
-  });
+
+  if (chatInfo.roomStatus === chatEnum.RoomChatStatus.STANDBY) {
+    await ChatRoom.update(
+      { roomStatus: chatEnum.RoomChatStatus.CHATTING },
+      {
+        where: {
+          id: chatInfo.chatRoomId,
+        },
+      }
+    );
+    socket.emit(
+      chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+      formatMessage("I Hear you", `Conversation Started Successfully`)
+    );
+  } else {
+    socket.emit(
+      chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+      formatMessage("I Hear you", `Not Eligible to Start Conversation`)
+    );
+  }
 };
 
 exports.disconnect = async (socket, io) => {
   try {
+    const activeUser = getActiveUser(socket.id);
+
+    await updateUserType(activeUser.userType, chatEnum.UserStatus.DISCONNECT);
+    await updateChatRoom(activeUser.username);
+
     const user = exitRoom(socket.id);
 
     if (user) {
@@ -168,42 +188,31 @@ exports.disconnect = async (socket, io) => {
       // Current active users and room name
       io.to(user.room).emit("roomUsers", {
         room: user.room,
-        users: getIndividualRoomUsers(user.room),
+        users: await getIndividualRoomUsers(user.room),
       });
     }
-
-    await sendChattingInfoResponse(user.username);
-
-    await updateChatRoom(
-      chatInfo.chatRoomId,
-      chatEnum.RoomChatStatus.DISCONNECT
-    ).then(() => {
-      socket.emit(
-        chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-        "Conversation Status disconnected."
-      );
-    });
   } catch (error) {
     console.log("disconnect error", error);
   }
 };
 
-exports.joinChat = async (socket, io, userEmail, userType) => {
+exports.joinChat = async (socket, io, username, userType) => {
   try {
-    await sendChattingInfoResponse(userEmail);
-    await updateChatRoom(chatInfo.chatRoomId, chatEnum.RoomChatStatus.STANDBY);
-    switch (userType) {
-      case chatEnum.UserType.MASTER:
-        await standByMaster(chatInfo.companyRoomId);
-        break;
-      case chatEnum.UserType.SLAVE:
-        await standBySlave(chatInfo.companyRoomId);
-        break;
+    const userTypeList = [chatEnum.UserType.MASTER, chatEnum.UserType.SLAVE];
+    if (!userTypeList.includes(userType)) {
+      socket.emit(
+        chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+        "User Type Not Valid "
+      );
+      return;
     }
-    const user = newUser(socket.id, userEmail, userType, chatInfo.chatRoomId);
+
+    await sendChattingInfoResponse(username);
+    await updateUserType(userType, chatEnum.UserStatus.CONNECTED);
+    await updateChatRoom(username);
+    const user = newUser(socket.id, username, userType, chatInfo.chatRoomId);
 
     socket.join(user.room);
-
     socket.broadcast
       .to(user.room)
       .emit(
@@ -211,98 +220,136 @@ exports.joinChat = async (socket, io, userEmail, userType) => {
         formatMessage("I hear you", `${user.userType} has joined the Chat`)
       );
 
-    // Current active users and room name
+    // // Current active users and room name
+    
     io.to(user.room).emit("activeRoomUserUser", {
       room: user.room,
-      users: getIndividualRoomUsers(user.room),
-    });
-
-    const { count, rows } = await ChatMessage.findAndCountAll({
-      where: {
-        ChatRoomId: user.room,
-        ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE,
-      },
-    });
-
-    // const historyMessage = await db.query("select msg.id, msg.message,msg.userType,msg.createdAt from chatmessages as msg join chatrooms as room on msg.ChatRoomId = room.id where room.id = :roomId", {
-    //   model: ChatMessage,
-    //   mapToModel: true,
-    //   replacements: { roomId: '3' },
-    //   type: QueryTypes.SELECT
-    //  });
-
-    //  console.log("historyMessage=>>>>>",historyMessage);
-
-    rows.forEach((element) => {
-      io.to(user.room).emit(
-        "message",
-        formatMessage(user.username, element.message)
-      );
+      users: await getIndividualRoomUsers(user.room),
     });
   } catch (error) {
-    console.log(error);
+    
+    console.log(
+      "🚀 ~ file: chat-room.service.js ~ line 213 ~ exports.joinChat= ~ error",
+      error
+    );
   }
 };
 
 exports.chatMessage = async (socket, io, chatMessage) => {
   try {
-
     const user = getActiveUser(socket.id);
-    const otherUser = findByUserType(user.userType);
-    console.log("🚀 ~ file: chat-room.service.js ~ line 251 ~ exports.chatMessage= ~ otherUser", otherUser)
+
+    const masterUser = findByUserType(chatEnum.UserType.MASTER);
+    console.log("🚀 ~ file: chat-room.service.js ~ line 243 ~ exports.chatMessage= ~ masterUser", masterUser)
+    const slaveUser = findByUserType(chatEnum.UserType.SLAVE);
 
     await sendChattingInfoResponse(user.username);
 
     if (chatInfo.roomStatus != chatEnum.RoomChatStatus.CHATTING) {
       io.to(user.room).emit(
         chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-        formatMessage("I Hear You", "Plase Start Conversation")
+        formatMessage("I Hear You", "Please Start Conversation")
       );
       return;
     }
 
-    io.to(otherUser.id).emit("message", formatMessage(user.userType, chatMessage));
+    io.to(masterUser.id).emit(
+      "message",
+      formatMessage(user.userType, chatMessage+"\t :to Master")
+    );
+
+    io.to(slaveUser.id).emit(
+      "message",
+      formatMessage(user.userType, chatMessage + " \t : to slave")
+    );
+
     let chatMessageObject = {
       message: chatMessage,
       ChatRoomId: user.room,
       userType: user.userType,
       ChatMessageStatus: chatEnum.ChatMessageType.ACTIVE,
     };
+
     await ChatMessage.create(chatMessageObject);
   } catch (error) {
     console.log("====>> chatMessage EROR ===>>", error);
   }
 };
 
-const standByMaster = async (companyRoomId) => {
+/*
+utils message
+*/
+
+async function updateUserType(userType, status) {
+  switch (userType) {
+    case chatEnum.UserType.MASTER:
+      await updateMasterStatus(chatInfo.companyRoomId, status);
+      break;
+    case chatEnum.UserType.SLAVE:
+      await updateSlaveStatus(chatInfo.companyRoomId, status);
+      break;
+  }
+}
+
+async function updateMasterStatus(companyRoomId, status) {
   await CompanyRoom.update(
-    { masterUserStatus: chatEnum.UserStatus.STANDBY },
+    { masterUserStatus: status },
     {
       where: {
         id: companyRoomId,
       },
     }
   );
-};
+}
 
-const standBySlave = async (companyRoomId) => {
+async function updateSlaveStatus(companyRoomId, status) {
   await CompanyRoom.update(
-    { slaveUserStatus: chatEnum.UserStatus.STANDBY },
+    { slaveUserStatus: status },
     {
       where: {
         id: companyRoomId,
       },
     }
   );
-};
+}
 
-const updateChatRoom = async (chatRoomId, status) => {
+async function updateChatRoom(username) {
+  await sendChattingInfoResponse(username);
+  let newRoomStatus = chatEnum.RoomChatStatus.STANDBY;
+  if (
+    chatInfo.masterUserStatus === chatEnum.UserStatus.DISCONNECT &&
+    chatInfo.slaveUserStatus === chatEnum.UserStatus.DISCONNECT
+  ) {
+    newRoomStatus = chatEnum.RoomChatStatus.DISCONNECT;
+  }
+
+  if (
+    chatInfo.masterUserStatus === chatEnum.UserStatus.CONNECTED &&
+    chatInfo.slaveUserStatus === chatEnum.UserStatus.CONNECTED
+  ) {
+    newRoomStatus = chatEnum.RoomChatStatus.STANDBY;
+  }
+
+  if (
+    chatInfo.masterUserStatus === chatEnum.UserStatus.CONNECTED &&
+    chatInfo.slaveUserStatus === chatEnum.UserStatus.DISCONNECT
+  ) {
+    newRoomStatus = chatEnum.RoomChatStatus.DISCONNECT;
+  }
+
+  if (
+    chatInfo.masterUserStatus === chatEnum.UserStatus.DISCONNECT &&
+    chatInfo.slaveUserStatus === chatEnum.UserStatus.CONNECTED
+  ) {
+    newRoomStatus = chatEnum.RoomChatStatus.DISCONNECT;
+  }
+
   await ChatRoom.update(
-    { roomStatus: status },
+    { roomStatus: newRoomStatus },
     {
       where: {
-        id: chatRoomId,
+        id: chatInfo.chatRoomId,
       },
     }
   );
-};
+}

@@ -28,7 +28,7 @@ socket.on('activeRoomUserUser', ({ room, users }) => {
   outputUsers(users);
 });
 
-socket.on('CONVERSATION_STATUS',  (message) => {
+socket.on('chat-info',  (message) => {
   console.log(message);
 });
 
@@ -46,7 +46,7 @@ socket.on("joinUserMessage", (message) => {
 socket.on("message", (message) => {
   console.log(message);
   outputMessage(message);
-  socket.emit('startConversation', email);
+
 
   // Scroll down
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -114,3 +114,11 @@ document.getElementById("leave-btn").addEventListener("click", () => {
   } else {
   }
 });
+
+
+document.getElementById("startConversation").addEventListener("click", () => {
+  socket.emit('startConversation', email);
+
+});
+
+

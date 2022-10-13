@@ -8,15 +8,17 @@ const RoomChatStatus = {
 };
 
 const UserStatus = {
-  OPEN: "DISCONNECT",
+  DISCONNECT: "DISCONNECT",
   STANDBY: "STANDBY",
+  CONNECTED :"CONNECTED",
   CHATTING: "CURRENTLY_CHATTING",
 };
 
 const UserType = {
-  SLAVE: "SLAVE",
-  MASTER: "MASTER",
+  SLAVE: "0",
+  MASTER: "1",
 };
+
 const ChatMessageType = {
   ACTIVE: "ACTIVE",
   INACTIVE: "INACTIVE",
@@ -56,7 +58,7 @@ const chatConstants = {
   },
 
   MESSAGE_KEYS: {
-    CONVERSATION_STATUS: "CONVERSATION_STATUS",
+    CONVERSATION_STATUS: "chat-info",
   },
 
   DEFAULT_CHAT_MESSAGE: {

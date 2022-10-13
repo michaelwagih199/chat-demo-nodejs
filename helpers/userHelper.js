@@ -1,12 +1,11 @@
 const users = [];
 
-
 // Join user to chat
 function newUser(id, username, userType, room) {
   const user = { id, username, userType, room };
-
-  users.push(user);
-
+  const isUserJoined = users.find((user) => user.userType == userType);
+  if (isUserJoined) throw Error("User Is Already Exist Before.");
+  else users.push(user);
   return user;
 }
 
@@ -29,14 +28,14 @@ function exitRoom(id) {
 }
 
 // Get room users
-function getIndividualRoomUsers(room) {
+const getIndividualRoomUsers = async (room) => {
   return users.filter((user) => user.room === room);
-}
+};
 
 module.exports = {
   newUser,
   getActiveUser,
   exitRoom,
   getIndividualRoomUsers,
-  findByUserType
+  findByUserType,
 };
