@@ -51,14 +51,20 @@ function chattingErrorResponse(code, message) {
 
 const chatConstants = {
   CHATTING_CHANNELS: {
-    OPEN_CONVERSATION_CHANNEL: "OPEN_CONVERSATION_CHANNEL",
-    START_CONVERSATION_CHANNEL: "START_CONVERSATION_CHANNEL",
-    STATUS_INFORMATION_CHANNEL: "STATUS_INFORMATION_CHANNEL",
-    JOIN_CONVERSATION_CHANNEL: "JOIN_CONVERSATION_CHANNEL",
+    OPEN_CONVERSATION_CHANNEL: "open_conversation_channel",
+    START_CONVERSATION_CHANNEL: "start_conversation_channel",
+    STATUS_INFORMATION_CHANNEL: "status_information_channel",
+    JOIN_CONVERSATION_CHANNEL: "join_conversation_channel",
+    CHAT_MESSAGE_CHANNEL: "chat-message",
+    DISCONNECT_CHANNEL: "disconnect"
   },
 
   MESSAGE_KEYS: {
     CONVERSATION_STATUS: "chat-info",
+    CHAT_WARNING: "chat-warning",
+    CHAT_MESSAGE: "chat-message",
+    CONVERSATION_USERS: "conversation_users",
+    ACTIVE_ROOM_USER_USER: "active_room_user_user",
   },
 
   DEFAULT_CHAT_MESSAGE: {
@@ -79,5 +85,5 @@ module.exports = {
   chattingInfoResponse,
   chattingErrorResponse,
   UserStatus,
-  ChatMessageType
+  ChatMessageType,
 };

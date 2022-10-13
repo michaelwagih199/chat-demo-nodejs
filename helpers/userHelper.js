@@ -4,8 +4,7 @@ const users = [];
 function newUser(id, username, userType, room) {
   const user = { id, username, userType, room };
   const isUserJoined = users.find((user) => user.userType == userType);
-  if (isUserJoined) throw Error("User Is Already Exist Before.");
-  else users.push(user);
+  if (!isUserJoined) users.push(user);
   return user;
 }
 

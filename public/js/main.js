@@ -17,23 +17,28 @@ let configDevice = {
 // Join chatroom
 // socket.emit('joinRoom', { username, room });
 
-socket.emit('JOIN_CONVERSATION_CHANNEL', {email,userType});
+socket.emit('join_conversation_channel', {email,userType});
 
 
 // socket.emit('OPEN_CONVERSATION_CHANNEL', "agent@gmail.com");
 
 // Get room and users
-socket.on('activeRoomUserUser', ({ room, users }) => {
+socket.on('active_room_user_user', ({ room, users }) => {
   outputRoomName(room);
   outputUsers(users);
 });
 
 socket.on('chat-info',  (message) => {
-  console.log(message);
+console.log("🚀chat-warning", message)
+});
+
+socket.on('chat-warning',  (message) => {
+  console.log("🚀chat-warning", message)
 });
 
 // Message from server
-socket.on("joinUserMessage", (message) => {
+socket.on("conversation_users", (message) => {
+  console.log("🚀conversation_users", message)
   
   console.log(message);
   // outputMessage(message);
@@ -43,10 +48,11 @@ socket.on("joinUserMessage", (message) => {
 });
 
 
-socket.on("message", (message) => {
+socket.on("chat-message", (message) => {
   console.log(message);
   outputMessage(message);
 
+  console.log("chat-message", message)
 
   // Scroll down
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -67,7 +73,7 @@ chatForm.addEventListener("submit", (e) => {
 
 
   // Emit message to server
-  socket.emit("chatMessage", msg);
+  socket.emit("chat-message", msg);
 
   // Clear input
   e.target.elements.msg.value = "";
@@ -101,7 +107,7 @@ function outputUsers(users) {
   userList.innerHTML = "";
   users.forEach((user) => {
     const li = document.createElement("li");
-    li.innerText = user.username;
+    li.innerText = user.userType;
     userList.appendChild(li);
   });
 }
@@ -117,8 +123,12 @@ document.getElementById("leave-btn").addEventListener("click", () => {
 
 
 document.getElementById("startConversation").addEventListener("click", () => {
-  socket.emit('startConversation', email);
+  socket.emit('start_conversation_channel', email);
 
+});
+
+document.getElementById("endConversation").addEventListener("click", () => {
+  // socket.emit('end_conversation', email);
 });
 
 

@@ -66,11 +66,11 @@ io.on("connection", (socket) => {
   );
 
   // Listen for client message
-  socket.on("chatMessage", (msg) => {
+  socket.on(chatEnum.chatConstants.CHATTING_CHANNELS.CHAT_MESSAGE_CHANNEL, (msg) => {
     chattingService.chatMessage(socket,io,msg);
   });
 
-  socket.on("startConversation", (email) => {
+  socket.on( chatEnum.chatConstants.CHATTING_CHANNELS.START_CONVERSATION_CHANNEL, (email) => {
     chattingService.startConversation(socket, email);
   });
 

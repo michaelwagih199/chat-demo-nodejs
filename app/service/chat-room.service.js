@@ -120,10 +120,8 @@ sendChattingInfoResponse = async (userEmail) => {
       companyRoomId: companyRoomStatus.id,
     };
   } catch (error) {
-    console.log(
-      "🚀 ~ file: chat-room.service.js ~ line 130 ~ sendChattingInfoResponse= ~ error",
-      error
-    );
+  console.log("🚀 ~ file: chat-room.service.js ~ line 123 ~ sendChattingInfoResponse= ~ error", error)
+
     throw error;
   }
 };
@@ -145,7 +143,7 @@ exports.startConversation = async (socket, username) => {
   await sendChattingInfoResponse(username);
   if (chatInfo.roomStatus === chatEnum.RoomChatStatus.CHATTING)
     socket.emit(
-      chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+      chatEnum.chatConstants.MESSAGE_KEYS.CHAT_WARNING,
       formatMessage("I Hear you", `Conversation is Already Started`)
     );
 
@@ -164,7 +162,7 @@ exports.startConversation = async (socket, username) => {
     );
   } else {
     socket.emit(
-      chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+      chatEnum.chatConstants.MESSAGE_KEYS.CHAT_WARNING,
       formatMessage("I Hear you", `Not Eligible to Start Conversation`)
     );
   }
@@ -172,7 +170,8 @@ exports.startConversation = async (socket, username) => {
 
 exports.disconnect = async (socket, io) => {
   try {
-    const activeUser = getActiveUser(socket.id);
+    const activeUser =  getActiveUser(socket.id);
+    console.log("🚀 ~ file: chat-room.service.js ~ line 174 ~ exports.disconnect= ~ activeUser", activeUser)
 
     await updateUserType(activeUser.userType, chatEnum.UserStatus.DISCONNECT);
     await updateChatRoom(activeUser.username);
@@ -182,14 +181,8 @@ exports.disconnect = async (socket, io) => {
     if (user) {
       io.to(user.room).emit(
         chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
-        formatMessage("I Hear you", `${user.username} has left the room`)
+        formatMessage("I Hear you", `${user.userType} has left the room`)
       );
-
-      // Current active users and room name
-      io.to(user.room).emit("roomUsers", {
-        room: user.room,
-        users: await getIndividualRoomUsers(user.room),
-      });
     }
   } catch (error) {
     console.log("disconnect error", error);
@@ -197,11 +190,12 @@ exports.disconnect = async (socket, io) => {
 };
 
 exports.joinChat = async (socket, io, username, userType) => {
+  console.log("🚀 ~ file: chat-room.service.js ~ line 193 ~ exports.joinChat= ~ userType", userType)
   try {
     const userTypeList = [chatEnum.UserType.MASTER, chatEnum.UserType.SLAVE];
     if (!userTypeList.includes(userType)) {
       socket.emit(
-        chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_STATUS,
+        chatEnum.chatConstants.MESSAGE_KEYS.CHAT_WARNING,
         "User Type Not Valid "
       );
       return;
@@ -216,13 +210,12 @@ exports.joinChat = async (socket, io, username, userType) => {
     socket.broadcast
       .to(user.room)
       .emit(
-        "joinUserMessage",
+        chatEnum.chatConstants.MESSAGE_KEYS.CONVERSATION_USERS,
         formatMessage("I hear you", `${user.userType} has joined the Chat`)
       );
 
     // // Current active users and room name
-    
-    io.to(user.room).emit("activeRoomUserUser", {
+    io.to(user.room).emit(chatEnum.chatConstants.MESSAGE_KEYS.ACTIVE_ROOM_USER_USER, {
       room: user.room,
       users: await getIndividualRoomUsers(user.room),
     });
@@ -240,7 +233,6 @@ exports.chatMessage = async (socket, io, chatMessage) => {
     const user = getActiveUser(socket.id);
 
     const masterUser = findByUserType(chatEnum.UserType.MASTER);
-    console.log("🚀 ~ file: chat-room.service.js ~ line 243 ~ exports.chatMessage= ~ masterUser", masterUser)
     const slaveUser = findByUserType(chatEnum.UserType.SLAVE);
 
     await sendChattingInfoResponse(user.username);
@@ -254,12 +246,12 @@ exports.chatMessage = async (socket, io, chatMessage) => {
     }
 
     io.to(masterUser.id).emit(
-      "message",
+      chatEnum.chatConstants.MESSAGE_KEYS.CHAT_MESSAGE,
       formatMessage(user.userType, chatMessage+"\t :to Master")
     );
 
     io.to(slaveUser.id).emit(
-      "message",
+      chatEnum.chatConstants.MESSAGE_KEYS.CHAT_MESSAGE,
       formatMessage(user.userType, chatMessage + " \t : to slave")
     );
 
